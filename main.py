@@ -2,6 +2,7 @@ import pygame
 from pygame.constants import QUIT
 import random
 import math
+from pygame import mixer
 
 # initialize game
 pygame.init()
@@ -11,6 +12,10 @@ screen = pygame.display.set_mode((800,600))
 
 # background
 background = pygame.image.load("fondorural.png")
+
+# background sound
+mixer.music.load("background.wav")
+mixer.music.play(-1)
 
 # title caption and icon
 pygame.display.set_caption("Apo fires falafel!")
@@ -23,12 +28,20 @@ playerX = 370
 playerY = 480
 player_move = 0
 
-# Creating enemy
-enemy_image = pygame.image.load("gauchoenemy.png")
-enemyX = random.randint(0, 735)
-enemyY = random.randint(50, 150)
-enemy_move_x = 1.5
-enemy_move_y = 40
+# Creating enemies
+enemy_image = []
+enemyX = []
+enemyY = []
+enemy_move_x = []
+enemy_move_y = []
+num_of_enemies = 3
+
+for i in range(num_of_enemies):
+    enemy_image.append(pygame.image.load("gauchoenemy.png"))
+    enemyX.append(random.randint(0, 735))
+    enemyY.append(random.randint(50, 150))
+    enemy_move_x.append(1.5)
+    enemy_move_y.append(40)
 
 # Creating bullet
 bullet_image = pygame.image.load("falafel.png")
@@ -43,14 +56,20 @@ font = pygame.font.Font("freesansbold.ttf", 28)
 textX = 10
 textY = 560
 
+# Game over font
+over_font = pygame.font.Font("freesansbold.ttf", 64)
+
+def game_over_text():
+    over_text = over_font.render("LA RURAL WINS", True, (0, 160, 0))
+    screen.blit(over_text, (150, 250))
 def show_score(x, y):
     vegan_score = font.render("Veganismo : " + str(score), True, (0, 160, 0))
     screen.blit(vegan_score, (x, y))
 def player(x, y):
     screen.blit(player_image, (x, y))
 
-def enemy(x, y):
-    screen.blit(enemy_image, (x, y))    
+def enemy(x, y, i):
+    screen.blit(enemy_image[i], (x, y))    
 
 def fire_bullet(x, y):
     global bullet_state
@@ -82,6 +101,8 @@ while running:
                 player_move = 5
             if event.key == pygame.K_SPACE:
                 if bullet_state is "ready":
+                    bullet_sound = mixer.Sound("laser.wav")
+                    bullet_sound.play()
                     bulletX = playerX
                     fire_bullet(bulletX, bulletY)                            
         
@@ -96,13 +117,36 @@ while running:
     elif playerX >= 736:
         playerX = 736
 
-    enemyX += enemy_move_x
-    if enemyX <= 0:
-        enemy_move_x = 1.5
-        enemyY += enemy_move_y
-    elif enemyX >= 736:
-        enemy_move_x = -1.5
-        enemyY += enemy_move_y
+    # enemies movement
+    for i in range(num_of_enemies):
+        
+        # GAME OVER
+        if enemyY[i] > 440:
+            for j in range(num_of_enemies):
+                enemyY[j] = 2000
+            game_over_text()
+            break
+        
+        enemyX[i] += enemy_move_x[i]
+        if enemyX[i] <= 0:
+            enemy_move_x[i] = 1.5
+            enemyY[i] += enemy_move_y[i]
+        elif enemyX[i] >= 736:
+            enemy_move_x[i] = -1.5
+            enemyY[i] += enemy_move_y[i]
+            
+        # collision
+        collision = is_collision(enemyX[i], enemyY[i], bulletX, bulletY)
+        if collision:
+            explosion_sound = mixer.Sound("explosion.wav")
+            explosion_sound.play()
+            bulletY = 480
+            bullet_state = "ready"
+            score += 1  
+            enemyX[i] = random.randint(0, 735)
+            enemyY[i] = random.randint(50, 150)   
+        
+        enemy(enemyX[i], enemyY[i], i)     
 
     # bullet movement
     if bullet_state is "fire":
@@ -112,17 +156,8 @@ while running:
         bulletY = 480
         bullet_state = "ready"    
 
-    # collision
-    collision = is_collision(enemyX, enemyY, bulletX, bulletY)
-    if collision:
-        bulletY = 480
-        bullet_state = "ready"
-        score += 1  
-        enemyX = random.randint(0, 735)
-        enemyY = random.randint(50, 150)
+    
  
     player(playerX, playerY)
     show_score(textX, textY)
-    enemy(enemyX, enemyY)
-
     pygame.display.update()        
